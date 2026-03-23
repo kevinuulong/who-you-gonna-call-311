@@ -1,15 +1,12 @@
+const colorBySelect = document.getElementById("color-by");
 
-
-
-
-
-d3.csv('data/worldcities.csv')  //**** TO DO  switch this to loading the quakes 'data/2024-2025.csv'
+d3.csv('data/311Sample.csv')  //**** TO DO  switch this to loading the quakes 'data/2024-2025.csv'
 .then(data => {
     console.log("number of items: " + data.length);
 
     data.forEach(d => {  //convert from string to number
-      d.latitude = +d.latitude; 
-      d.longitude = +d.longitude;  
+      d.LATITUDE = +d.LATITUDE; 
+      d.LONGITUDE = +d.LONGITUDE;  
     });
 
     // Initialize chart and then show it
@@ -18,3 +15,7 @@ d3.csv('data/worldcities.csv')  //**** TO DO  switch this to loading the quakes 
 
   })
   .catch(error => console.error(error));
+
+colorBySelect.addEventListener("change", (e) => {
+  console.log(e.target.value);
+});
