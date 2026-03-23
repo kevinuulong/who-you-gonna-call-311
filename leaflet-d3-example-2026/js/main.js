@@ -1,7 +1,4 @@
-
-
-
-
+var leafletMap;
 
 d3.csv('data/worldcities.csv')  //**** TO DO  switch this to loading the quakes 'data/2024-2025.csv'
 .then(data => {
@@ -15,6 +12,13 @@ d3.csv('data/worldcities.csv')  //**** TO DO  switch this to loading the quakes 
     // Initialize chart and then show it
     leafletMap = new LeafletMap({ parentElement: '#my-map'}, data);
 
-
   })
   .catch(error => console.error(error));
+
+  function changeMap() {
+    if (leafletMap) {
+    leafletMap.updateVis();
+    } else {
+      console.log("Map not ready yet!");
+    }
+  }
