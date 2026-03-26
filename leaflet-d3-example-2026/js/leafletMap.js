@@ -45,10 +45,37 @@ class LeafletMap {
     });
 
     vis.theMap = L.map('my-map', {
-      center: [39.103119, -84.512016],
+      center: [39.14, -84.512016],
       zoom: 11,
+      minZoom: 11,
+      maxBoundsViscosity: 1.0,
       layers: [vis.base_layer]
     });
+
+    // Calculate bounds from data to limit panning
+    if (vis.data && vis.data.length > 0) {
+      let minLat = vis.data[0].LATITUDE;
+      let maxLat = vis.data[0].LATITUDE;
+      let minLng = vis.data[0].LONGITUDE;
+      let maxLng = vis.data[0].LONGITUDE;
+
+      vis.data.forEach(d => {
+        minLat = Math.min(minLat, d.LATITUDE);
+        maxLat = Math.max(maxLat, d.LATITUDE);
+        minLng = Math.min(minLng, d.LONGITUDE);
+        maxLng = Math.max(maxLng, d.LONGITUDE);
+      });
+
+      // Add padding around bounds to allow some panning room
+      const padding = 1;
+      const latPadding = (maxLat - minLat) * padding;
+      const lngPadding = (maxLng - minLng) * padding;
+
+      vis.theMap.setMaxBounds([
+        [minLat - latPadding, minLng - lngPadding],
+        [maxLat + latPadding, maxLng + lngPadding]
+      ]);
+    }
 
     vis.colorScale = d3.scaleBand()
     // .range([0, vis.theMap.getBoundingCLientRect().left])
@@ -119,13 +146,28 @@ class LeafletMap {
       vis.updateVis();
     });
 
+    //prevent zooming below level 11
+    vis.theMap.on("zoom", function () {
+      if (vis.theMap.getZoom() < 11) {
+        vis.theMap.setZoom(11);
+      }
+    });
+
   }
 
   updateVis() {
     let vis = this;
 
     //want to see how zoomed in you are? 
-    // console.log(vis.map.getZoom()); //how zoomed am I?
+    console.log(vis.theMap.getZoom()); //how zoomed am I?
+
+    vis.theMap.on("zoomstart", function () {
+      vis.updateVis();
+    });
+
+    // if (vis.theMap.getZoom() < 11) {
+    //   vis.theMap.setZoom(11);
+    // }
     //----- maybe you want to use the zoom level as a basis for changing the size of the points... ?
 
 
