@@ -16,14 +16,52 @@ class LeafletMap {
   setColorScale() {
     switch (colorBy) {
       case "time-elapsed":
-        return d3.scaleSequential()
+        this.colorScale = d3.scaleSequential()
           .domain(d3.extent(this.data, this.getColorValue))
           .interpolator(d3.interpolateYlOrRd)
+        break;
 
       case "neighborhood":
-        return d3.scaleOrdinal()
-          .domain([...new Set(this.data.map((d) => d.NEIGHBORHOOD)).sort()])
-          .interpolator(d3.interpolateYlOrRd)
+        this.colorScale = d3.scaleOrdinal()
+          .domain([...new Set(this.data.map(this.getColorValue))].sort())
+          // TODO: This technically gets the job done, but is not very nice
+          .range([
+            '#3957ff', '#d3fe14', '#c9080a', '#fec7f8',
+            '#0b7b3e', '#0bf0e9', '#c203c8', '#fd9b39',
+            '#888593', '#906407', '#98ba7f', '#fe6794',
+            '#10b0ff', '#ac7bff', '#fee7c0', '#964c63',
+            '#1da49c', '#0ad811', '#bbd9fd', '#fe6cfe',
+            '#297192', '#d1a09c', '#78579e', '#81ffad',
+            '#739400', '#ca6949', '#d9bf01', '#646a58',
+            '#d5097e', '#bb73a9', '#ccf6e9', '#9cb4b6',
+            '#b6a7d4', '#9e8c62', '#6e83c8', '#01af64',
+            '#a71afd', '#cfe589', '#d4ccd1', '#fd4109',
+            '#bf8f0e', '#2f786e', '#4ed1a5', '#d8bb7d',
+            '#a54509', '#6a9276', '#a4777a', '#fc12c9',
+            '#606f15', '#3cc4d9', '#f31c4e', '#73616f'
+          ])
+        break;
+
+      case "priority":
+        this.colorScale = d3.scaleOrdinal()
+          .domain(["EMERGENCY", "HAZARDOUS", "PRIORITY", "STANDARD"])
+          .range(["#c9080a", "#ac7bff", "#10b0ff", "#888593"])
+        break;
+
+      case "agency":
+        this.colorScale = d3.scaleOrdinal()
+          .domain([...new Set(this.data.map(this.getColorValue))].sort())
+          .range([
+            '#3957ff', '#d3fe14',
+            '#c9080a', '#fec7f8',
+            '#0b7b3e', '#0bf0e9',
+            '#c203c8', '#fd9b39',
+            '#888593', '#906407',
+            '#98ba7f', '#fe6794',
+            '#10b0ff', '#ac7bff',
+            '#fee7c0', '#964c63',
+            '#1da49c'
+          ])
 
       default:
         break;
@@ -37,6 +75,13 @@ class LeafletMap {
 
       case "neighborhood":
         return d.NEIGHBORHOOD;
+
+      case "priority":
+        return d.PRIORITY;
+
+      case "agency":
+        return d.DEPT_NAME;
+
       default:
         break;
     }
@@ -65,11 +110,17 @@ class LeafletMap {
     vis.stUrl = 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.{ext}';
     vis.stAttr = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
+    vis.stOutUrl = 'https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.{ext}';
+    vis.stOutAttr = '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+    vis.stAlUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.{ext}';
+    vis.stAlAttr = '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
     //this is the base map layer, where we are showing the map background
     //**** TO DO - try different backgrounds 
-    vis.base_layer = L.tileLayer(vis.stUrl, {
+    vis.base_layer = L.tileLayer(vis.stAlUrl, {
       id: 'esri-image',
-      attribution: vis.esriAttr,
+      attribution: vis.stAlAttr,
       ext: 'png'
     });
 
@@ -86,7 +137,7 @@ class LeafletMap {
     vis.overlay = d3.select(vis.theMap.getPanes().overlayPane)
     vis.svg = vis.overlay.select('svg').attr("pointer-events", "auto")
 
-    vis.colorScale = vis.setColorScale();
+    vis.setColorScale();
 
     //these are the city locations, displayed as a set of dots 
     vis.Dots = vis.svg.selectAll('circle')
@@ -154,7 +205,6 @@ class LeafletMap {
     //want to see how zoomed in you are? 
     // console.log(vis.map.getZoom()); //how zoomed am I?
     //----- maybe you want to use the zoom level as a basis for changing the size of the points... ?
-
 
     //redraw based on new zoom- need to recalculate on-screen position
     vis.Dots
