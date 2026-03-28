@@ -1,4 +1,7 @@
+let leafletMap;
+
 const colorBySelect = document.getElementById("color-by");
+let colorBy = colorBySelect.value;
 
 d3.csv('data/311Sample.csv')  //**** TO DO  switch this to loading the quakes 'data/2024-2025.csv'
 .then(data => {
@@ -17,5 +20,6 @@ d3.csv('data/311Sample.csv')  //**** TO DO  switch this to loading the quakes 'd
   .catch(error => console.error(error));
 
 colorBySelect.addEventListener("change", (e) => {
-  console.log(e.target.value);
+  colorBy = e.target.value;
+  leafletMap.updateVis();
 });

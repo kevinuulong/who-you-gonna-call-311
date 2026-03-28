@@ -13,6 +13,35 @@ class LeafletMap {
     this.initVis();
   }
 
+  setColorScale() {
+    switch (colorBy) {
+      case "time-elapsed":
+        return d3.scaleSequential()
+          .domain(d3.extent(this.data, this.getColorValue))
+          .interpolator(d3.interpolateYlOrRd)
+
+      case "neighborhood":
+        return d3.scaleOrdinal()
+          .domain([...new Set(this.data.map((d) => d.NEIGHBORHOOD)).sort()])
+          .interpolator(d3.interpolateYlOrRd)
+
+      default:
+        break;
+    }
+  }
+
+  getColorValue(d) {
+    switch (colorBy) {
+      case "time-elapsed":
+        return (new Date(d.DATE_LAST_UPDATE) - new Date(d.DATE_CREATED)) / (1000 * 60 * 60 * 24);
+
+      case "neighborhood":
+        return d.NEIGHBORHOOD;
+      default:
+        break;
+    }
+  }
+
   /**
    * We initialize scales/axes and append static elements, such as axis titles.
    */
@@ -33,12 +62,12 @@ class LeafletMap {
     vis.thOutAttr = '&copy; <a href="http://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
     //Stamen Terrain
-    vis.stUrl = 'https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}{r}.{ext}';
+    vis.stUrl = 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.{ext}';
     vis.stAttr = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
     //this is the base map layer, where we are showing the map background
     //**** TO DO - try different backgrounds 
-    vis.base_layer = L.tileLayer(vis.esriUrl, {
+    vis.base_layer = L.tileLayer(vis.stUrl, {
       id: 'esri-image',
       attribution: vis.esriAttr,
       ext: 'png'
@@ -50,10 +79,6 @@ class LeafletMap {
       layers: [vis.base_layer]
     });
 
-    vis.colorScale = d3.scaleBand()
-    // .range([0, vis.theMap.getBoundingCLientRect().left])
-    // console.log(vis.theMap.getBoundingClientRect().left);
-
     //if you stopped here, you would just have a map
 
     //initialize svg for d3 to add to map
@@ -61,11 +86,13 @@ class LeafletMap {
     vis.overlay = d3.select(vis.theMap.getPanes().overlayPane)
     vis.svg = vis.overlay.select('svg').attr("pointer-events", "auto")
 
+    vis.colorScale = vis.setColorScale();
+
     //these are the city locations, displayed as a set of dots 
     vis.Dots = vis.svg.selectAll('circle')
       .data(vis.data)
       .join('circle')
-      .attr("fill", "steelblue")  //---- TO DO- color by magnitude 
+      .attr("fill", (d) => vis.colorScale(vis.getColorValue(d)))  //---- TO DO- color by magnitude 
       .attr("stroke", "black")
       //Leaflet has to take control of projecting points. 
       //Here we are feeding the latitude and longitude coordinates to
@@ -83,7 +110,7 @@ class LeafletMap {
 
         //create a tool tip
         d3.select('#tooltip')
-          .style('opacity', 1)
+          .style('display', "block")
           .style('z-index', 1000000)
           // Format number with million and thousand separator
           //***** TO DO- change this tooltip to show useful information about the quakes
@@ -107,10 +134,10 @@ class LeafletMap {
       .on('mouseleave', function () { //function to add mouseover event
         d3.select(this).transition() //D3 selects the object we have moused over in order to perform operations on it
           .duration('150') //how long we are transitioning between the two states (works like keyframes)
-          .attr("fill", "steelblue") //change the fill  TO DO- change fill again
+          .attr("fill", (d) => vis.colorScale(vis.getColorValue(d))) //change the fill  TO DO- change fill again
           .attr('r', 3) //change radius
 
-        d3.select('#tooltip').style('opacity', 0);//turn off the tooltip
+        d3.select('#tooltip').style('display', "none");//turn off the tooltip
 
       })
 
@@ -133,7 +160,7 @@ class LeafletMap {
     vis.Dots
       .attr("cx", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).x)
       .attr("cy", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).y)
-      .attr("fill", "steelblue")  //---- TO DO- color by magnitude 
+      .attr("fill", (d) => vis.colorScale(vis.getColorValue(d)))  //---- TO DO- color by magnitude 
       .attr("r", 3);
 
   }
