@@ -23,7 +23,7 @@ d3.csv('data/311Sample.csv')
 
 function changeMap() {
   if (leafletMap) {
-  leafletMap.updateVis();
+    leafletMap.updateVis();
   } else {
     console.log("Map not ready yet!");
   }

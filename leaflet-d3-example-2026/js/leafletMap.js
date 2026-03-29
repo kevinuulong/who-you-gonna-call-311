@@ -184,10 +184,10 @@ class LeafletMap {
     //this is the base map layer, where we are showing the map background
     //**** TO DO - try different backgrounds 
 
-    vis.base_layer = L.tileLayer(vis.stUrl, {
-    id: 'stamen-image',
-    attribution: vis.stAttr,
-    ext: 'png'
+    vis.base_layer = L.tileLayer(vis.stAlUrl, {
+      id: 'stamen-image',
+      attribution: vis.stAlAttr,
+      ext: 'png'
     });
 
     vis.theMap = L.map('my-map', {
@@ -273,22 +273,28 @@ class LeafletMap {
 
     if (mapType === "topo") {
       vis.base_layer = L.tileLayer(vis.topoUrl, {
-      id: 'topo-image',
-      attribution: vis.esriAttr,
-      ext: 'png'
-    });
+        id: 'topo-image',
+        attribution: vis.esriAttr,
+        ext: 'png'
+      });
+    } else if (mapType === "light") {
+      vis.base_layer = L.tileLayer(vis.stAlUrl, {
+        id: 'alidade-image',
+        attribution: vis.stAlAttr,
+        ext: 'png'
+      });
     } else if (mapType === "stamen") {
       vis.base_layer = L.tileLayer(vis.stUrl, {
-      id: 'stamen-image',
-      attribution: vis.stUrl,
-      ext: 'png'
-    });
+        id: 'stamen-image',
+        attribution: vis.stUrl,
+        ext: 'png'
+      });
     } else {
       vis.base_layer = L.tileLayer(vis.stUrl, {
-      id: 'stamen-image',
-      attribution: vis.stAttr,
-      ext: 'png'
-    });
+        id: 'stamen-image',
+        attribution: vis.stAttr,
+        ext: 'png'
+      });
     }
 
     vis.base_layer.addTo(vis.theMap);
