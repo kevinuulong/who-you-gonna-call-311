@@ -5,11 +5,14 @@ class LeafletMap {
    * @param {Object}
    * @param {Array}
    */
-  constructor(_config, _data) {
+  constructor(_config, _data, _maps, _defaultFilters = [175, 176]) {
     this.config = {
       parentElement: _config.parentElement,
     }
     this.data = _data;
+    this.maps = _maps;
+    this.defaultFilters = _defaultFilters;
+    this.activeFilters = new Set(this.defaultFilters);
     this.initVis();
   }
 
@@ -96,7 +99,6 @@ class LeafletMap {
       vis.legendControl.remove();
     }
 
-    // 2. Create a new Leaflet control
     vis.legendControl = L.control({ position: "bottomleft" });
 
     vis.legendControl.onAdd = function () {
@@ -153,6 +155,128 @@ class LeafletMap {
 
   }
 
+  renderFilter() {
+    const vis = this;
+
+    if (vis.filterControl) {
+      vis.filterControl.remove();
+    }
+
+    vis.filterControl = L.control({ position: "topright" });
+
+    vis.filterControl.onAdd = function () {
+      const div = L.DomUtil.create("div", "filters");
+
+      const button = L.DomUtil.create("button", "control-button", div);
+      button.title = "Filters"
+      button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M440-160q-17 0-28.5-11.5T400-200v-240L168-736q-15-20-4.5-42t36.5-22h560q26 0 36.5 22t-4.5 42L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-308 198-252H282l198 252Zm0 0Z"/></svg>`
+
+      const pane = L.DomUtil.create("dialog", "pane", div);
+      L.DomEvent.disableScrollPropagation(pane);
+      L.DomEvent.disableClickPropagation(pane);
+
+      const title = L.DomUtil.create("h4", "title", pane);
+      title.textContent = "FILTERS";
+
+      const filters = L.DomUtil.create("fieldset", "filters-list", pane);
+
+      vis.maps["SR_TYPE_DESC"].forEach((serviceType, i) => {
+        const group = L.DomUtil.create("div", "filter-group", filters);
+        const input = L.DomUtil.create("input", "filter-checkbox", group);
+        input.type = "checkbox";
+        input.name = `filter-${i}`;
+        input.id = `filter-${i}`;
+        if (vis.activeFilters.has(i)) input.checked = true;
+
+        input.addEventListener("change", (e) => {
+          if (e.target.checked) {
+            vis.activeFilters.add(i);
+          } else {
+            vis.activeFilters.delete(i);
+          }
+          vis.updateFilters();
+        });
+
+        const label = L.DomUtil.create("label", "filter-label", group);
+        label.htmlFor = `filter-${i}`;
+        label.textContent = serviceType;
+      });
+
+      button.addEventListener("click", () => {
+        if (pane.open) {
+          pane.close();
+        } else {
+          pane.show();
+        }
+      });
+
+      return div;
+    }
+
+    vis.filterControl.addTo(vis.theMap);
+
+  }
+
+  updateFilters() {
+    const vis = this;
+
+    vis.filteredData = vis.data.filter((d) => vis.activeFilters.has(Number(d["SR_TYPE_DESC"])));
+
+    //these are the city locations, displayed as a set of dots 
+    vis.Dots = vis.svg.selectAll('circle')
+      .data(vis.filteredData)
+      .join('circle')
+      .attr("fill", (d) => vis.colorScale(vis.getColorValue(d)))  //---- TO DO- color by magnitude 
+      .attr("stroke", "black")
+      //Leaflet has to take control of projecting points. 
+      //Here we are feeding the latitude and longitude coordinates to
+      //leaflet so that it can project them on the coordinates of the view. 
+      //the returned conversion produces an x and y point. 
+      //We have to select the the desired one using .x or .y
+      .attr("cx", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).x)
+      .attr("cy", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).y)
+      .attr("r", d => 3)  // --- TO DO- want to make radius proportional to earthquake size? 
+      .on('mouseover', function (event, d) { //function to add mouseover event
+        d3.select(this).transition() //D3 selects the object we have moused over in order to perform operations on it
+          .duration('150') //how long we are transitioning between the two states (works like keyframes)
+          .attr("fill", "red") //change the fill
+          .attr('r', 4); //change radius
+
+        //create a tool tip
+        d3.select('#tooltip')
+          .style('display', "block")
+          .style('z-index', 1000000)
+          // Format number with million and thousand separator
+          //***** TO DO- change this tooltip to show useful information about the quakes
+          .html(`<div class="tooltip-label">
+                                  Date Recieved: ${d.DATE_TIME_RECEIVED} <br> 
+                                  Last Update: ${d.DATE_LAST_UPDATE} <br>
+                                  Location: ${d.LOCATION} <br> 
+                                  Priority: ${d.PRIORITY} <br>
+                                  Handler: ${d.DEPT_NAME} <br>
+                                  Call Type: ${d.SR_TYPE} <br>
+                                  Description: ${d.SR_TYPE_DESC} <br>
+                                  </div>`);
+
+      })
+      .on('mousemove', (event) => {
+        //position the tooltip
+        d3.select('#tooltip')
+          .style('left', (event.pageX + 10) + 'px')
+          .style('top', (event.pageY + 10) + 'px');
+      })
+      .on('mouseleave', function () { //function to add mouseover event
+        d3.select(this).transition() //D3 selects the object we have moused over in order to perform operations on it
+          .duration('150') //how long we are transitioning between the two states (works like keyframes)
+          .attr("fill", (d) => vis.colorScale(vis.getColorValue(d))) //change the fill  TO DO- change fill again
+          .attr('r', 3) //change radius
+
+        d3.select('#tooltip').style('display', "none");//turn off the tooltip
+
+      })
+
+  }
+
   /**
    * We initialize scales/axes and append static elements, such as axis titles.
    */
@@ -204,65 +328,14 @@ class LeafletMap {
     vis.svg = vis.overlay.select('svg').attr("pointer-events", "auto")
 
     vis.setColorScale();
-
-    //these are the city locations, displayed as a set of dots 
-    vis.Dots = vis.svg.selectAll('circle')
-      .data(vis.data)
-      .join('circle')
-      .attr("fill", (d) => vis.colorScale(vis.getColorValue(d)))  //---- TO DO- color by magnitude 
-      .attr("stroke", "black")
-      //Leaflet has to take control of projecting points. 
-      //Here we are feeding the latitude and longitude coordinates to
-      //leaflet so that it can project them on the coordinates of the view. 
-      //the returned conversion produces an x and y point. 
-      //We have to select the the desired one using .x or .y
-      .attr("cx", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).x)
-      .attr("cy", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).y)
-      .attr("r", d => 3)  // --- TO DO- want to make radius proportional to earthquake size? 
-      .on('mouseover', function (event, d) { //function to add mouseover event
-        d3.select(this).transition() //D3 selects the object we have moused over in order to perform operations on it
-          .duration('150') //how long we are transitioning between the two states (works like keyframes)
-          .attr("fill", "red") //change the fill
-          .attr('r', 4); //change radius
-
-        //create a tool tip
-        d3.select('#tooltip')
-          .style('display', "block")
-          .style('z-index', 1000000)
-          // Format number with million and thousand separator
-          //***** TO DO- change this tooltip to show useful information about the quakes
-          .html(`<div class="tooltip-label">
-                                  Date Recieved: ${d.DATE_TIME_RECEIVED} <br> 
-                                  Last Update: ${d.DATE_LAST_UPDATE} <br>
-                                  Location: ${d.LOCATION} <br> 
-                                  Priority: ${d.PRIORITY} <br>
-                                  Handler: ${d.DEPT_NAME} <br>
-                                  Call Type: ${d.SR_TYPE} <br>
-                                  Description: ${d.SR_TYPE_DESC} <br>
-                                  </div>`);
-
-      })
-      .on('mousemove', (event) => {
-        //position the tooltip
-        d3.select('#tooltip')
-          .style('left', (event.pageX + 10) + 'px')
-          .style('top', (event.pageY + 10) + 'px');
-      })
-      .on('mouseleave', function () { //function to add mouseover event
-        d3.select(this).transition() //D3 selects the object we have moused over in order to perform operations on it
-          .duration('150') //how long we are transitioning between the two states (works like keyframes)
-          .attr("fill", (d) => vis.colorScale(vis.getColorValue(d))) //change the fill  TO DO- change fill again
-          .attr('r', 3) //change radius
-
-        d3.select('#tooltip').style('display', "none");//turn off the tooltip
-
-      })
+    vis.renderFilter();
 
     //handler here for updating the map, as you zoom in and out           
     vis.theMap.on("zoomend", function () {
       vis.updateVis();
     });
 
+    vis.updateFilters();
   }
 
   updateVis() {

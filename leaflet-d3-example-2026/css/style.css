@@ -1,6 +1,13 @@
-#my-map {
+html,
+body {
+  height: 100%;
   width: 100%;
-  height: 500px;
+  margin: 0;
+}
+
+#my-map {
+  max-width: 1440px;
+  height: 100%;
 }
 
 #tooltip {
@@ -29,7 +36,8 @@
 
   gap: 10px;
 
-  .title, .label {
+  .title,
+  .label {
     margin: 0;
     text-shadow: -1px -1px 0 #fff,
       1px -1px 0 #fff,
@@ -79,5 +87,89 @@
   .bar {
     width: 200px;
     height: 20px;
+  }
+}
+
+.filters {
+  position: relative;
+
+  &:has(:open) button {
+    background-color: #f4f4f4;
+  }
+
+  .pane {
+    position: absolute;
+    background-color: #fff;
+    border-radius: 4px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    padding: 0;
+
+    left: 0;
+    top: 0;
+    transform: translateX(calc(-100% - 10px));
+
+    width: 200px;
+
+    flex-direction: column;
+    max-height: 400px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+
+
+    fieldset {
+      border: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
+
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 0.5rem;
+      align-items: flex-start;
+      flex: 1;
+      
+
+      label {
+        flex: 1;
+      }
+
+      &:hover {
+        background-color: #f4f4f4;
+      }
+    }
+
+    &[open] {
+      display: flex;
+    }
+  }
+
+  .title {
+    margin: 0;
+    padding: 0.5rem 0.5rem;
+  }
+}
+
+.control-button {
+  border-radius: 4px;
+  background-color: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: #f4f4f4;
+    cursor: pointer;
   }
 }
