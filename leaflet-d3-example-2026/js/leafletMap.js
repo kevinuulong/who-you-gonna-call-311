@@ -44,8 +44,8 @@ class LeafletMap {
 
       case "priority":
         this.colorScale = d3.scaleOrdinal()
-          .domain(["EMERGENCY", "HAZARDOUS", "PRIORITY", "STANDARD"])
-          .range(["#c9080a", "#ac7bff", "#10b0ff", "#888593"])
+          .domain(["STANDARD", "PRIORITY", "HAZARDOUS", "EMERGENCY"])
+          .range(["#888593", "#10b0ff", "#ac7bff", "#c9080a"])
         break;
 
       case "agency":
@@ -66,6 +66,8 @@ class LeafletMap {
       default:
         break;
     }
+
+    this.renderLegend();
   }
 
   getColorValue(d) {
@@ -85,6 +87,70 @@ class LeafletMap {
       default:
         break;
     }
+  }
+
+  renderLegend() {
+    const vis = this;
+
+    if (vis.legendControl) {
+      vis.legendControl.remove();
+    }
+
+    // 2. Create a new Leaflet control
+    vis.legendControl = L.control({ position: "bottomleft" });
+
+    vis.legendControl.onAdd = function () {
+      const div = L.DomUtil.create("div", "legend");
+      const domain = vis.colorScale.domain();
+      const range = vis.colorScale.range();
+
+      const title = L.DomUtil.create("p", "title", div);
+      title.textContent = colorBy.replace("-", " ").toUpperCase();
+
+      const boxes = L.DomUtil.create("div", "boxes", div);
+      const tooltip = L.DomUtil.create("div", "legend-tooltip", div);
+
+      switch (colorBy) {
+        case "time-elapsed":
+          const bar = L.DomUtil.create("div", "bar", boxes);
+          bar.style.backgroundImage = `linear-gradient(to right, ${range[0]}, ${range[1]})`;
+          const labels = L.DomUtil.create("div", "labels", div);
+          const min = document.createElement("p");
+          min.textContent = `${Math.round(domain[0])} days`;
+          min.classList.add("label");
+          const max = document.createElement("p");
+          max.textContent = `${Math.round(domain[1])} days`;
+          labels.append(min, max);
+          max.classList.add("label");
+          break;
+
+        default:
+          domain.forEach(d => {
+            const box = L.DomUtil.create("div", "box", boxes);
+            box.style = `background-color: ${vis.colorScale(d)}`;
+
+            box.addEventListener("mouseover", () => {
+              tooltip.textContent = d;
+              tooltip.style.display = "block";
+            });
+
+            box.addEventListener("mousemove", (e) => {
+              tooltip.style.left = `${e.pageX}px`;
+            });
+
+            box.addEventListener("mouseout", () => {
+              tooltip.style.display = "none";
+            });
+          });
+          break;
+      }
+
+      return div;
+    }
+
+
+    vis.legendControl.addTo(vis.theMap);
+
   }
 
   /**
