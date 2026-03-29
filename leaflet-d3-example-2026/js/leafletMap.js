@@ -186,7 +186,7 @@ class LeafletMap {
 
     vis.base_layer = L.tileLayer(vis.stUrl, {
     id: 'stamen-image',
-    attribution: vis.esriAttr,
+    attribution: vis.stAttr,
     ext: 'png'
     });
 
@@ -280,13 +280,13 @@ class LeafletMap {
     } else if (mapType === "stamen") {
       vis.base_layer = L.tileLayer(vis.stUrl, {
       id: 'stamen-image',
-      attribution: vis.esriAttr,
+      attribution: vis.stUrl,
       ext: 'png'
     });
     } else {
       vis.base_layer = L.tileLayer(vis.stUrl, {
       id: 'stamen-image',
-      attribution: vis.esriAttr,
+      attribution: vis.stAttr,
       ext: 'png'
     });
     }
