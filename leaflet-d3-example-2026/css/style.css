@@ -43,6 +43,13 @@ body {
       1px -1px 0 #fff,
       -1px 1px 0 #fff,
       1px 1px 0 #fff;
+      background-color: transparent;
+      border: none;
+      width: fit-content;
+  }
+
+  .color-by-option {
+    color: black;
   }
 
   .labels {

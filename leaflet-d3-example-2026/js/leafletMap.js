@@ -5,7 +5,12 @@ class LeafletMap {
    * @param {Object}
    * @param {Array}
    */
-  constructor(_config, _data, _maps, _defaultFilters = [175, 176]) {
+  constructor(_config,
+    _data,
+    _maps,
+    _defaultFilters = [175, 176],
+    _colorBys = [{ "time-elapsed": "Time elapsed" }, { "neighborhood": "Neighborhood" }, { "priority": "Priority" }, { "agency": "Responding agency" }],
+  ) {
     this.config = {
       parentElement: _config.parentElement,
     }
@@ -13,20 +18,22 @@ class LeafletMap {
     this.maps = _maps;
     this.defaultFilters = _defaultFilters;
     this.activeFilters = new Set(this.defaultFilters);
+    this.colorBys = _colorBys;
+    this.colorBy = Object.keys(this.colorBys[0])[0];
     this.initVis();
   }
 
   setColorScale() {
-    switch (colorBy) {
+    switch (this.colorBy) {
       case "time-elapsed":
         this.colorScale = d3.scaleSequential()
-          .domain(d3.extent(this.data, this.getColorValue))
+          .domain(d3.extent(this.data, (d) => this.getColorValue(d)))
           .interpolator(d3.interpolateYlOrRd)
         break;
 
       case "neighborhood":
         this.colorScale = d3.scaleOrdinal()
-          .domain([...new Set(this.data.map(this.getColorValue))].sort())
+          .domain([...new Set(this.data.map((d) => this.getColorValue(d)))].sort())
           // TODO: This technically gets the job done, but is not very nice
           .range([
             '#3957ff', '#d3fe14', '#c9080a', '#fec7f8',
@@ -53,7 +60,7 @@ class LeafletMap {
 
       case "agency":
         this.colorScale = d3.scaleOrdinal()
-          .domain([...new Set(this.data.map(this.getColorValue))].sort())
+          .domain([...new Set(this.data.map((d) => this.getColorValue(d)))].sort())
           .range([
             '#3957ff', '#d3fe14',
             '#c9080a', '#fec7f8',
@@ -70,22 +77,23 @@ class LeafletMap {
         break;
     }
 
-    this.renderLegend();
   }
 
   getColorValue(d) {
-    switch (colorBy) {
+    const vis = this;
+
+    switch (vis.colorBy) {
       case "time-elapsed":
         return (new Date(d.DATE_LAST_UPDATE) - new Date(d.DATE_CREATED)) / (1000 * 60 * 60 * 24);
 
       case "neighborhood":
-        return d.NEIGHBORHOOD;
+        return vis.maps.NEIGHBORHOOD[d.NEIGHBORHOOD];
 
       case "priority":
-        return d.PRIORITY;
+        return vis.maps.PRIORITY[d.PRIORITY];
 
       case "agency":
-        return d.DEPT_NAME;
+        return vis.maps.DEPT_NAME[d.DEPT_NAME];
 
       default:
         break;
@@ -103,56 +111,78 @@ class LeafletMap {
 
     vis.legendControl.onAdd = function () {
       const div = L.DomUtil.create("div", "legend");
-      const domain = vis.colorScale.domain();
-      const range = vis.colorScale.range();
 
-      const title = L.DomUtil.create("p", "title", div);
-      title.textContent = colorBy.replace("-", " ").toUpperCase();
+      const colorBySelect = L.DomUtil.create("select", "title", div);
+      colorBySelect.name = colorBySelect.id = "color-by";
+      vis.colorBys.forEach((choice) => {
+        const [value, label] = Object.entries(choice)[0];
+        const option = L.DomUtil.create("option", "", colorBySelect);
+        option.value = value;
+        option.textContent = label.replace("-", " ").toUpperCase();
+        if (value === vis.colorBy) option.selected = true;
+      });
 
-      const boxes = L.DomUtil.create("div", "boxes", div);
-      const tooltip = L.DomUtil.create("div", "legend-tooltip", div);
+      vis.legendBoxes = L.DomUtil.create("div", "boxes", div);
+      vis.legendTooltip = L.DomUtil.create("div", "legend-tooltip", div);
 
-      switch (colorBy) {
-        case "time-elapsed":
-          const bar = L.DomUtil.create("div", "bar", boxes);
-          bar.style.backgroundImage = `linear-gradient(to right, ${range[0]}, ${range[1]})`;
-          const labels = L.DomUtil.create("div", "labels", div);
-          const min = document.createElement("p");
-          min.textContent = `${Math.round(domain[0])} days`;
-          min.classList.add("label");
-          const max = document.createElement("p");
-          max.textContent = `${Math.round(domain[1])} days`;
-          labels.append(min, max);
-          max.classList.add("label");
-          break;
-
-        default:
-          domain.forEach(d => {
-            const box = L.DomUtil.create("div", "box", boxes);
-            box.style = `background-color: ${vis.colorScale(d)}`;
-
-            box.addEventListener("mouseover", () => {
-              tooltip.textContent = d;
-              tooltip.style.display = "block";
-            });
-
-            box.addEventListener("mousemove", (e) => {
-              tooltip.style.left = `${e.pageX}px`;
-            });
-
-            box.addEventListener("mouseout", () => {
-              tooltip.style.display = "none";
-            });
-          });
-          break;
-      }
+      colorBySelect.addEventListener("change", (e) => {
+        vis.colorBy = e.target.value;
+        vis.setColorScale();
+        vis.updateLegend();
+        vis.updateFilters();
+      });
 
       return div;
     }
 
-
     vis.legendControl.addTo(vis.theMap);
+    vis.updateLegend();
+  }
 
+  updateLegend() {
+    const vis = this;
+
+    const domain = vis.colorScale.domain();
+    const range = vis.colorScale.range();
+
+    vis.legendBoxes.innerHTML = "";
+    document.querySelector(".legend .labels")?.remove();
+
+    switch (vis.colorBy) {
+      case "time-elapsed":
+        const bar = L.DomUtil.create("div", "bar", vis.legendBoxes);
+        bar.style.backgroundImage = `linear-gradient(to right, ${range[0]}, ${range[1]})`;
+        const labels = L.DomUtil.create("div", "labels", document.querySelector(".legend"));
+        const min = document.createElement("p");
+        min.textContent = `${Math.round(domain[0])} days`;
+        min.classList.add("label");
+        const max = document.createElement("p");
+        max.textContent = `${Math.round(domain[1])} days`;
+        labels.append(min, max);
+        max.classList.add("label");
+        break;
+
+      default:
+        domain.forEach(d => {
+          const box = L.DomUtil.create("div", "box", vis.legendBoxes);
+          box.style = `background-color: ${vis.colorScale(d)}`;
+
+          box.addEventListener("mouseover", () => {
+            vis.legendTooltip.textContent = d;
+            vis.legendTooltip.style.display = "block";
+          });
+
+          box.addEventListener("mousemove", (e) => {
+            const { width } = vis.legendTooltip.getBoundingClientRect();
+            vis.legendTooltip.style.left = (e.pageX - (width / 2) >= 0) ? `${e.pageX}px` : `${e.pageX + (width / 4)}px`;
+          });
+
+          box.addEventListener("mouseout", () => {
+            vis.legendTooltip.style.display = "none";
+          });
+        });
+        break;
+    }
   }
 
   renderFilter() {
@@ -251,11 +281,11 @@ class LeafletMap {
           .html(`<div class="tooltip-label">
                                   Date Recieved: ${d.DATE_TIME_RECEIVED} <br> 
                                   Last Update: ${d.DATE_LAST_UPDATE} <br>
-                                  Location: ${d.LOCATION} <br> 
-                                  Priority: ${d.PRIORITY} <br>
-                                  Handler: ${d.DEPT_NAME} <br>
-                                  Call Type: ${d.SR_TYPE} <br>
-                                  Description: ${d.SR_TYPE_DESC} <br>
+                                  Location: ${d.ADDRESS} <br> 
+                                  Priority: ${vis.maps.PRIORITY[d.PRIORITY]} <br>
+                                  Handler: ${vis.maps.DEPT_NAME[d.DEPT_NAME]} <br>
+                                  Call Type: ${vis.maps.SR_TYPE[d.SR_TYPE]} <br>
+                                  Description: ${vis.maps.SR_TYPE_DESC[d.SR_TYPE_DESC]} <br>
                                   </div>`);
 
       })
@@ -328,6 +358,7 @@ class LeafletMap {
     vis.svg = vis.overlay.select('svg').attr("pointer-events", "auto")
 
     vis.setColorScale();
+    vis.renderLegend();
     vis.renderFilter();
 
     //handler here for updating the map, as you zoom in and out           
