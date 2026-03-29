@@ -159,7 +159,6 @@ class LeafletMap {
   initVis() {
     let vis = this;
 
-
     //ESRI
     vis.esriUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
     vis.esriAttr = 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community';
@@ -174,7 +173,7 @@ class LeafletMap {
 
     //Stamen Terrain
     vis.stUrl = 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.{ext}';
-    vis.stAttr = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+    vis.stAttr = '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://www.stamen.com/" target="_blank">Stamen Design</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
     vis.stOutUrl = 'https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.{ext}';
     vis.stOutAttr = '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -184,10 +183,11 @@ class LeafletMap {
 
     //this is the base map layer, where we are showing the map background
     //**** TO DO - try different backgrounds 
-    vis.base_layer = L.tileLayer(vis.stAlUrl, {
-      id: 'esri-image',
-      attribution: vis.stAlAttr,
-      ext: 'png'
+
+    vis.base_layer = L.tileLayer(vis.stUrl, {
+    id: 'stamen-image',
+    attribution: vis.stAttr,
+    ext: 'png'
     });
 
     vis.theMap = L.map('my-map', {
@@ -267,7 +267,31 @@ class LeafletMap {
 
   updateVis() {
     let vis = this;
+    let mapType = document.getElementById("map-type").value;
 
+    vis.theMap.removeLayer(vis.base_layer);
+
+    if (mapType === "topo") {
+      vis.base_layer = L.tileLayer(vis.topoUrl, {
+      id: 'topo-image',
+      attribution: vis.esriAttr,
+      ext: 'png'
+    });
+    } else if (mapType === "stamen") {
+      vis.base_layer = L.tileLayer(vis.stUrl, {
+      id: 'stamen-image',
+      attribution: vis.stUrl,
+      ext: 'png'
+    });
+    } else {
+      vis.base_layer = L.tileLayer(vis.stUrl, {
+      id: 'stamen-image',
+      attribution: vis.stAttr,
+      ext: 'png'
+    });
+    }
+
+    vis.base_layer.addTo(vis.theMap);
     //want to see how zoomed in you are? 
     // console.log(vis.map.getZoom()); //how zoomed am I?
     //----- maybe you want to use the zoom level as a basis for changing the size of the points... ?

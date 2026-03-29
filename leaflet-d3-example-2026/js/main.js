@@ -18,9 +18,16 @@ d3.csv('data/311Sample.csv')
     // Initialize chart and then show it
     leafletMap = new LeafletMap({ parentElement: '#my-map' }, data);
 
-
   })
   .catch(error => console.error(error));
+
+function changeMap() {
+  if (leafletMap) {
+  leafletMap.updateVis();
+  } else {
+    console.log("Map not ready yet!");
+  }
+}
 
 colorBySelect.addEventListener("change", (e) => {
   colorBy = e.target.value;
