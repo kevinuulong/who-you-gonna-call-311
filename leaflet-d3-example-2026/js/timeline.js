@@ -1,176 +1,160 @@
 class Timeline {
-  /**
-   * Class constructor with basic configuration
-   * @param {Object} _config - Configuration object
-   * @param {Array} _data - Array of data items
-   */
-  constructor(_config, _data) {
+  constructor(_config, _data, _maps) {
     this.config = {
       parentElement: _config.parentElement,
       containerWidth: _config.containerWidth || 800,
       containerHeight: _config.containerHeight || 300,
     };
     this.data = _data;
+    this.maps = _maps;
     this.initVis();
   }
 
-  /**
-   * Initialize scales, axes, and append static elements
-   */
   initVis() {
     let vis = this;
 
-    // Set dimensions
-    vis.margin = { top: 20, right: 30, bottom: 30, left: 60 };
-    vis.width =
-      vis.config.containerWidth -
-      vis.margin.left -
-      vis.margin.right;
-    vis.height =
-      vis.config.containerHeight -
-      vis.margin.top -
-      vis.margin.bottom;
+    vis.margin = { top: 20, right: 30, bottom: 40, left: 60 };
+    vis.width = vis.config.containerWidth - vis.margin.left - vis.margin.right;
+    vis.height = vis.config.containerHeight - vis.margin.top - vis.margin.bottom;
 
-    // Create SVG
-    vis.svg = d3
-      .select(vis.config.parentElement)
+    vis.svg = d3.select(vis.config.parentElement)
       .append('svg')
       .attr('width', vis.config.containerWidth)
       .attr('height', vis.config.containerHeight);
 
-    vis.g = vis.svg
-      .append('g')
+    vis.g = vis.svg.append('g')
       .attr('transform', `translate(${vis.margin.left},${vis.margin.top})`);
 
-    // Initialize scales
     vis.xScale = d3.scaleBand().range([0, vis.width]).padding(0.1);
     vis.yScale = d3.scaleLinear().range([vis.height, 0]);
+    vis.colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 
-    // Initialize axes
-    vis.xAxis = d3.axisBottom(vis.xScale);
-    vis.yAxis = d3.axisLeft(vis.yScale);
-
-    // Append x-axis
-    vis.xAxisGroup = vis.g
-      .append('g')
-      .attr('class', 'axis x-axis')
+    vis.xAxisGroup = vis.g.append('g')
       .attr('transform', `translate(0,${vis.height})`);
 
-    // Append y-axis
-    vis.yAxisGroup = vis.g.append('g').attr('class', 'axis y-axis');
+    vis.yAxisGroup = vis.g.append('g');
 
-    // Add y-axis label
-    vis.g
-      .append('text')
-      .attr('transform', 'rotate(-90)')
-      .attr('y', 0 - vis.margin.left)
-      .attr('x', 0 - vis.height / 2)
-      .attr('dy', '1em')
-      .style('text-anchor', 'middle')
-      .text('Number of Issues');
-
-    // Add x-axis label
-    vis.g
-      .append('text')
-      .attr('transform', `translate(${vis.width / 2}, ${vis.height + vis.margin.bottom})`)
-      .style('text-anchor', 'middle')
-      .text('Month');
+    vis.tooltip = d3.select('body')
+      .append('div')
+      .style('position', 'absolute')
+      .style('background', 'white')
+      .style('border', '1px solid #ccc')
+      .style('padding', '6px')
+      .style('pointer-events', 'none')
+      .style('opacity', 0);
 
     vis.updateVis();
   }
 
-  /**
-   * Wrangle data and update visualization
-   */
   updateVis() {
     let vis = this;
+    const data = typeof filteredData !== 'undefined' ? filteredData : vis.data;
 
-    // Month mapping for proper ordering
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthIndices = {};
-    monthNames.forEach((month, index) => {
-      monthIndices[month] = index;
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthIndex = {};
+    monthNames.forEach((m,i)=>monthIndex[m]=i);
+
+    // Map SR_TYPE -> SR_TYPE_DESC
+    const typeMap = {};
+    data.forEach(d => {
+      if (!typeMap[d.SR_TYPE]) typeMap[d.SR_TYPE] = d.SR_TYPE_DESC;
     });
 
-    // Parse dates and group by month only (no year since all data is 2025)
-    const monthCounts = {};
+    // Use SR_TYPE_DESC in the categories
+    const categories = Array.from(new Set(data.map(d => typeMap[d.SR_TYPE])));
 
-    vis.data.forEach(d => {
-      // Prefer DATE_CLOSED if available, otherwise fall back to DATE_TIME_RECEIVED
-      let rawDate = d.DATE_CLOSED;
-      if (!rawDate || rawDate.trim().length === 0) {
-        return; // skip missing closed date rows
-      }
+    vis.colorScale.domain(categories);
 
-      try {
-        // 1) Try format like "2025 Dec 24 12:00:00 AM"
-        let closeMatch = rawDate.match(/^(\d{4})\s+(\w{3})/);
-        if (closeMatch) {
-          const month = closeMatch[2];
-          if (monthNames.includes(month)) {
-            monthCounts[month] = (monthCounts[month] || 0) + 1;
-            return;
-          }
-        }
+    // Group data by month and SR_TYPE_DESC
+    const grouped = d3.rollups(
+      data,
+      v => v.length,
+      d => {
+        let raw = d.DATE_CLOSED;
+        if (!raw) return null;
 
-        // 2) Try format like "1/2/25" fallback
-        let lenMatch = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-        if (lenMatch) {
-          const monthNum = parseInt(lenMatch[1], 10);
-          if (monthNum >= 1 && monthNum <= 12) {
-            const month = monthNames[monthNum - 1];
-            monthCounts[month] = (monthCounts[month] || 0) + 1;
-            return;
-          }
-        }
+        let match = raw.match(/^(\d{4})\s+(\w{3})/);
+        if (match) return match[2];
 
-        console.warn('Could not parse DATE_CLOSED/DATE_TIME_RECEIVED:', rawDate);
-      } catch (e) {
-        console.warn('Could not parse date:', rawDate, e);
-      }
-    });
+        let fallback = raw.match(/^(\d{1,2})\//);
+        if (fallback) return monthNames[fallback[1]-1];
 
-    // Convert to array and sort by month order
-    vis.processedData = Object.entries(monthCounts)
-      .map(([month, count]) => ({
-        month: month,
-        count: count,
-        monthIndex: monthIndices[month]
-      }))
-      .sort((a, b) => a.monthIndex - b.monthIndex);
+        return null;
+      },
+      d => typeMap[d.SR_TYPE] // use human-readable
+    );
 
-    console.log('Month counts:', monthCounts);
-    console.log('Processed data:', vis.processedData);
+    // Build stacked input with zero-fill
+    const stackedInput = grouped.map(([month, values]) => {
+      let obj = { month };
+      categories.forEach(cat => obj[cat] = 0);
+      values.forEach(([cat, count]) => obj[cat] = count);
+      return obj;
+    }).sort((a,b)=>monthIndex[a.month]-monthIndex[b.month]);
 
-    // Update scales
-    vis.xScale.domain(vis.processedData.map(d => d.month));
-    vis.yScale.domain([0, d3.max(vis.processedData, d => d.count)]).nice();
+    vis.xScale.domain(stackedInput.map(d => d.month));
 
-    // Bind data to bars
-    const bars = vis.g
-      .selectAll('.bar')
-      .data(vis.processedData, d => d.month);
+    const stack = d3.stack().keys(categories);
+    const series = stack(stackedInput);
 
-    // Enter + Update
-    bars
-      .enter()
-      .append('rect')
-      .attr('class', 'bar')
-      .attr('x', d => vis.xScale(d.month))
-      .attr('y', d => vis.yScale(d.count))
-      .attr('width', vis.xScale.bandwidth())
-      .attr('height', d => vis.height - vis.yScale(d.count))
-      .attr('fill', 'steelblue');
+    const maxVal = d3.max(series, s => d3.max(s, d => d[1])) || 0;
+    vis.yScale.domain([0, maxVal]).nice();
 
-    // Update axes
-    vis.xAxisGroup.call(vis.xAxis);
-    vis.yAxisGroup.call(vis.yAxis);
-  }
+    // Draw stacked bars
+    const layers = vis.g.selectAll('.layer')
+      .data(series, d => d.key)
+      .join('g')
+      .attr('class', 'layer')
+      .attr('fill', d => vis.colorScale(d.key));
 
-  /**
-   * Render the visualization
-   */
-  renderVis() {
-    // Optional: add animations or additional rendering logic
+    layers.selectAll('rect')
+      .data(d => d.map(v => ({ ...v, key: d.key })))
+      .join(
+        enter => enter.append('rect')
+          .attr('x', d => vis.xScale(d.data.month))
+          .attr('width', vis.xScale.bandwidth())
+          .attr('y', vis.height)
+          .attr('height', 0)
+          .on('mousemove', (event, d) => {
+            const value = d[1] - d[0];
+
+            // Compute total for the month
+            const nonZeroCategories = Object.entries(d.data)
+              .filter(([k, v]) => k !== 'month' && v > 0);
+            const total = nonZeroCategories.reduce((acc, [, v]) => acc + v, 0);
+
+            const showTotal = nonZeroCategories.length > 1;
+
+            vis.tooltip
+              .style('opacity', 1)
+              .html(`
+                <strong>Report ID:</strong> ${vis.maps.SR_TYPE_DESC[d.key]}<br>
+                <strong>Month:</strong> ${d.data.month}<br>
+                <strong>Count:</strong> ${value}
+                ${showTotal ? `<br><strong>Total:</strong> ${total}` : ''}
+              `)
+              .style('left', event.pageX + 10 + 'px')
+              .style('top', event.pageY - 20 + 'px');
+          })
+          .on('mouseleave', () => vis.tooltip.style('opacity', 0))
+          .call(enter => enter.transition()
+            .duration(500)
+            .attr('y', d => vis.yScale(d[1]))
+            .attr('height', d => vis.yScale(d[0]) - vis.yScale(d[1]))
+          ),
+
+        update => update.call(update => update.transition()
+          .duration(500)
+          .attr('x', d => vis.xScale(d.data.month))
+          .attr('width', vis.xScale.bandwidth())
+          .attr('y', d => vis.yScale(d[1]))
+          .attr('height', d => vis.yScale(d[0]) - vis.yScale(d[1]))
+        ),
+
+        exit => exit.remove()
+      );
+
+    vis.xAxisGroup.call(d3.axisBottom(vis.xScale));
+    vis.yAxisGroup.call(d3.axisLeft(vis.yScale));
   }
 }

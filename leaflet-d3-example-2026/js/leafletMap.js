@@ -279,6 +279,8 @@ class LeafletMap {
     const vis = this;
 
     vis.filteredData = vis.data.filter((d) => vis.activeFilters.has(Number(d["SR_TYPE_DESC"])));
+    filteredData = vis.filteredData;
+    updateFilteredData();
 
     vis.setColorScale();
 

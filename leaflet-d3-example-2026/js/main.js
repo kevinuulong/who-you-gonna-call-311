@@ -1,4 +1,5 @@
 let leafletMap;
+let filteredData;
 
 // TODO: Look into using Marker clusters for some things (especially the neighborhoods)
 // https://github.com/Leaflet/Leaflet.markercluster
@@ -17,16 +18,20 @@ Promise.all([
       NUMBER_COLUMNS.forEach((column) => d[column] = Number(d[column]));
     });
 
-    // Initialize map
-    leafletMap = new LeafletMap({ parentElement: '#my-map'}, data, maps);
-
     // Initialize timeline
     timeline = new Timeline({ 
       parentElement: '#timeline',
       containerWidth: 800,
       containerHeight: 300
-    }, data);
+    }, data, maps);
+
+    // Initialize map
+    leafletMap = new LeafletMap({ parentElement: '#my-map'}, data, maps);
 
   })
   .catch(error => console.error(error));
+
+  function updateFilteredData() {
+    timeline.updateVis();
+  }
 
