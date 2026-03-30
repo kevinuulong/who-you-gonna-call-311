@@ -426,15 +426,18 @@ class LeafletMap {
     vis.stAlUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.{ext}';
     vis.stAlAttr = '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
+    vis.cartoUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.{ext}';
+    vis.cartoAttr = '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
     //this is the base map layer, where we are showing the map background
     //**** TO DO - try different backgrounds 
 
-    vis.layers = [{ "light": "Light" }, { "stamen": "Regular" }, { "topo": "Topographic" }];
+    vis.layers = [{ "light": "Light" }, { "aerial": "Aerial" }, { "topo": "Topographic" }];
     vis.activeLayer = "light";
 
-    vis.base_layer = L.tileLayer(vis.stAlUrl, {
-      id: 'stamen-image',
-      attribution: vis.stAlAttr,
+    vis.base_layer = L.tileLayer(vis.cartoUrl, {
+      id: 'carto-image',
+      attribution: vis.cartoAttr,
       ext: 'png'
     });
 
@@ -469,24 +472,22 @@ class LeafletMap {
 
     vis.theMap.removeLayer(vis.base_layer);
 
-    console.log(vis.activeLayer);
-
     if (vis.activeLayer === "topo") {
       vis.base_layer = L.tileLayer(vis.topoUrl, {
         id: 'topo-image',
-        attribution: vis.esriAttr,
+        attribution: vis.topoAttr,
         ext: 'png'
       });
     } else if (vis.activeLayer === "light") {
-      vis.base_layer = L.tileLayer(vis.stAlUrl, {
-        id: 'alidade-image',
-        attribution: vis.stAlAttr,
+      vis.base_layer = L.tileLayer(vis.cartoUrl, {
+        id: 'carto-image',
+        attribution: vis.cartoAttr,
         ext: 'png'
       });
-    } else if (vis.activeLayer === "stamen") {
-      vis.base_layer = L.tileLayer(vis.stUrl, {
-        id: 'stamen-image',
-        attribution: vis.stUrl,
+    } else if (vis.activeLayer === "aerial") {
+      vis.base_layer = L.tileLayer(vis.esriUrl, {
+        id: 'esri-image',
+        attribution: vis.esriAttr,
         ext: 'png'
       });
     } else {
