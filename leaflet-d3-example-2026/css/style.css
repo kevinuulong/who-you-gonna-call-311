@@ -81,3 +81,16 @@
     height: 20px;
   }
 }
+
+#attribute-views {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+#attribute-views > div {
+  width: 300px;
+  height: 300px;
+}
