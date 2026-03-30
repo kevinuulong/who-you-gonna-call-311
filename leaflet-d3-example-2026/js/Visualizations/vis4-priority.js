@@ -1,8 +1,13 @@
-d3.csv('data/311Sample.csv').then(data => {
+Promise.all([
+  d3.csv("data/311Compressed2025.csv"),
+  d3.json("data/maps.json"),
+])
+  .then(data => ({ data: data[0], maps: data[1] }))
+  .then(({ data, maps }) => {
 
     data.forEach(d => {
-        d.type = d.SR_TYPE_DESC ? d.SR_TYPE_DESC.trim() : "Unknown";
-        d.priority = d.PRIORITY ? d.PRIORITY.trim() : "Unknown";
+        d.type = maps.SR_TYPE_DESC[d.SR_TYPE_DESC] ? maps.SR_TYPE_DESC[d.SR_TYPE_DESC].trim() : "Unknown";
+        d.priority = maps.PRIORITY[d.PRIORITY] ? maps.PRIORITY[d.PRIORITY].trim() : "Unknown";
     });
 
     const priorities = Array.from(new Set(data.map(d => d.priority)));

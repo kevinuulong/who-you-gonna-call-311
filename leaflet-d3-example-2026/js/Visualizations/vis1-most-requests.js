@@ -1,9 +1,13 @@
-d3.csv('data/311Sample.csv').then(data => {
-
+Promise.all([
+  d3.csv("data/311Compressed2025.csv"),
+  d3.json("data/maps.json"),
+])
+  .then(data => ({ data: data[0], maps: data[1] }))
+  .then(({ data, maps }) => {
     const counts = d3.rollups(
         data,
         v => v.length,
-        d => d.NEIGHBORHOOD ? d.NEIGHBORHOOD.trim() : "Unknown"
+        d => maps.NEIGHBORHOOD[d.NEIGHBORHOOD] ? maps.NEIGHBORHOOD[d.NEIGHBORHOOD].trim() : "Unknown"
     ).map(d => ({
         neighborhood: d[0],
         count: d[1]

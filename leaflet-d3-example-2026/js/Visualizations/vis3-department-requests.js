@@ -1,8 +1,13 @@
-d3.csv('data/311Sample.csv').then(data => {
+Promise.all([
+  d3.csv("data/311Compressed2025.csv"),
+  d3.json("data/maps.json"),
+])
+  .then(data => ({ data: data[0], maps: data[1] }))
+  .then(({ data, maps }) => {
     const counts = d3.rollups(
         data,
         v => v.length,
-        d => d.DEPT_NAME ? d.DEPT_NAME.trim() : "Unknown"
+        d => maps.DEPT_NAME[d.DEPT_NAME] ? maps.DEPT_NAME[d.DEPT_NAME].trim() : "Unknown"
     ).map(d => ({ dept: d[0], count: d[1] }));
 
     counts.sort((a, b) => b.count - a.count);
@@ -23,7 +28,7 @@ d3.csv('data/311Sample.csv').then(data => {
 
     const pie = d3.pie()
         .value(d => d.count)
-        .sort(null); // keep original order
+        .sort(null);
 
     const arc = d3.arc()
         .innerRadius(radius * 0.5)

@@ -21,6 +21,14 @@ body {
 #sidebar {
   background-color: red;
   grid-row: span 5;
+  gap: 20px;
+  justify-content: space-around;
+  align-items: flex-start;
+}
+
+#sidebar > div {
+  width: 300px;
+  height: 300px;
 }
 
 #timeline {
@@ -201,17 +209,4 @@ body {
     background-color: #f4f4f4;
     cursor: pointer;
   }
-}
-
-#attribute-views {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-around;
-  align-items: flex-start;
-  gap: 20px;
-}
-
-#attribute-views > div {
-  width: 300px;
-  height: 300px;
 }
