@@ -5,9 +5,27 @@ body {
   margin: 0;
 }
 
+body {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+}
+
 #my-map {
-  max-width: 1440px;
   height: 100%;
+  grid-column: span 3;
+  grid-row: span 4;
+  width: 100%;
+}
+
+#sidebar {
+  background-color: red;
+  grid-row: span 5;
+}
+
+#timeline {
+  background-color: blue;
+  grid-column: span 3;
 }
 
 #tooltip {
