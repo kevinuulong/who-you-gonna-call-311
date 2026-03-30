@@ -9,7 +9,7 @@ class LeafletMap {
     _data,
     _maps,
     _defaultFilters = [175, 176],
-    _colorBys = [{ "time-elapsed": "Time elapsed" }, { "neighborhood": "Neighborhood" }, { "priority": "Priority" }, { "agency": "Responding agency" }, {"service-type": "Service type"}],
+    _colorBys = [{ "time-elapsed": "Time elapsed" }, { "neighborhood": "Neighborhood" }, { "priority": "Priority" }, { "agency": "Responding agency" }, { "service-type": "Service type" }],
   ) {
     this.config = {
       parentElement: _config.parentElement,
@@ -20,6 +20,63 @@ class LeafletMap {
     this.activeFilters = new Set(this.defaultFilters);
     this.colorBys = _colorBys;
     this.colorBy = Object.keys(this.colorBys[0])[0];
+
+    this.neighborhoods = [
+      { name: "AVONDALE", location: [39.147778, -84.495] },
+      { name: "BOND HILL", location: [39.174722, -84.467222] },
+      { name: "CALIFORNIA", location: [39.065278, -84.423333] },
+      { name: "CAMP WASHINGTON", location: [39.133333, -84.533333] },
+      { name: "CARTHAGE", location: [39.195833, -84.483333] },
+      { name: "CLIFTON", location: [39.15, -84.52] },
+      { name: "COLLEGE HILL", location: [39.2, -84.55] },
+      { name: "COLUMBIA TUSCULUM", location: [39.116667, -84.433333] },
+      { name: "CORRYVILLE", location: [39.1325, -84.502778] },
+      { name: "CUF", location: [39.133333, -84.525] },
+      { name: "DOWNTOWN", location: [39.1, -84.516667] },
+      { name: "EAST END", location: [39.1, -84.433333] },
+      { name: "EAST PRICE HILL", location: [39.1, -84.433333] },
+      { name: "EAST WALNUT HILLS", location: [39.125, -84.477778] },
+      { name: "EAST WESTWOOD", location: [39.15, -84.566667] },
+      { name: "ENGLISH WOODS", location: [39.137692, -84.552457] },
+      { name: "EVANSTON", location: [39.1405, -84.4723] },
+      { name: "HARTWELL", location: [39.211111, -84.475] },
+      { name: "HYDE PARK", location: [39.139722, -84.4425] },
+      { name: "KENNEDY HEIGHTS", location: [39.185615, -84.408274] },
+      { name: "LINWOOD", location: [39.120833, -84.413333] },
+      { name: "LOWER PRICE HILL", location: [39.103611, -84.552222] },
+      { name: "MADISONVILLE", location: [39.160556, -84.393056] },
+      { name: "MILLVALE", location: [39.1474, -84.55135] },
+      { name: "MT. ADAMS", location: [39.109167, -84.496111] },
+      { name: "MT. AIRY", location: [39.191447, -84.570223] },
+      { name: "MT. AUBURN", location: [39.12, -84.508333] },
+      { name: "MT. LOOKOUT", location: [39.128889, -84.430278] },
+      { name: "MT. WASHINGTON", location: [39.09045, -84.38887] },
+      { name: "NORTH AVONDALE - PADDOCK HILLS", location: [39.155164, -84.48868] },
+      { name: "NORTH FAIRMOUNT", location: [39.135677, -84.556448] },
+      { name: "NORTHSIDE", location: [39.160556, -84.539444] },
+      { name: "OAKLEY", location: [39.151183, -84.433245] },
+      { name: "OVER-THE-RHINE", location: [39.113056, -84.516111] },
+      { name: "PADDOCK HILLS", location: [39.166667, -84.475] },
+      { name: "PENDLETON", location: [39.110307, -84.508537] },
+      { name: "PLEASANT RIDGE", location: [39.184302, -84.424009] },
+      { name: "QUEENSGATE", location: [39.184302, -84.424009] },
+      { name: "RIVERSIDE", location: [39.08, -84.590278] },
+      { name: "ROSELAWN", location: [39.195, -84.4625] },
+      { name: "SAYLER PARK", location: [39.1125, -84.689167] },
+      { name: "SEDAMSVILLE", location: [39.090556, -84.570833] },
+      { name: "SOUTH CUMMINSVILLE", location: [39.153889, -84.548056] },
+      { name: "SOUTH FAIRMOUNT", location: [39.125833, -84.552778] },
+      { name: "SPRING GROVE VILLAGE", location: [39.166667, -84.516667] },
+      { name: "SPRING GROVE VILLAGE", location: [39.166667, -84.516667] },
+      { name: "THE HEIGHTS", location: [39.1328, -84.5153] },
+      { name: "VILLAGES AT ROLL HILL", location: [39.156097, -84.5606] },
+      { name: "WALNUT HILLS", location: [39.126944, -84.484167] },
+      { name: "WEST END", location: [39.111944, -84.525278] },
+      { name: "WEST PRICE HILL", location: [39.1139481, -84.5913335] },
+      { name: "WESTWOOD", location: [39.146111, -84.589444] },
+      { name: "WINTON HILLS", location: [39.188889, -84.5125] },
+    ].sort((a, b) => b.location[0] - a.location[0]);
+
     this.initVis();
   }
 
@@ -284,6 +341,18 @@ class LeafletMap {
 
     vis.setColorScale();
 
+    if (vis.colorBy === "neighborhood") {
+      vis.flags = vis.svg.selectAll(".flag")
+        .data(vis.neighborhoods)
+        .join("image")
+        .classed("flag", true)
+        .attr("xlink:href", (d) => `images/flags/${d.name}.svg`)
+        .attr("x", (d) => vis.theMap.latLngToLayerPoint(d.location).x - 25)
+        .attr("y", (d) => vis.theMap.latLngToLayerPoint(d.location).y - 50)
+        .attr("width", 50)
+        .attr("height", 50);
+    }
+
     //these are the city locations, displayed as a set of dots 
     vis.Dots = vis.svg.selectAll('circle')
       .data(vis.filteredData)
@@ -337,7 +406,7 @@ class LeafletMap {
 
       })
 
-      if (vis.colorBy === "service-type") vis.renderLegend();
+    if (vis.colorBy === "service-type") vis.renderLegend();
   }
 
   renderLayersControl() {
@@ -550,6 +619,20 @@ class LeafletMap {
     //   vis.theMap.setZoom(11);
     // }
     //----- maybe you want to use the zoom level as a basis for changing the size of the points... ?
+
+    if (vis.colorBy === "neighborhood") {
+      console.log(vis.theMap.getZoom());
+      const zoom = vis.theMap.getZoom();
+      const size = 50 + ((((50 / 11) * zoom)-50)*13);
+      console.log(size);
+      vis.flags
+        // .attr("transform", d3.event.transform)
+        // const zoom = vis.theMap.getZoomScale(vis.theMap.getZoom(), 11)
+        .attr("x", (d) => vis.theMap.latLngToLayerPoint(d.location).x - (size / 2))
+        .attr("y", (d) => vis.theMap.latLngToLayerPoint(d.location).y - size)
+        .attr("width", size)
+        .attr("height", size)
+    }
 
     //redraw based on new zoom- need to recalculate on-screen position
     vis.Dots
