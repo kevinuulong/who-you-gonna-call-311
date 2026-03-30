@@ -84,7 +84,9 @@ class LeafletMap {
 
     switch (vis.colorBy) {
       case "time-elapsed":
-        return (new Date(d.DATE_LAST_UPDATE) - new Date(d.DATE_CREATED)) / (1000 * 60 * 60 * 24);
+        const days = (new Date(d.DATE_LAST_UPDATE) - new Date(d.DATE_CREATED)) / (1000 * 60 * 60 * 24);
+        // NOTE: Some of the data has a DATE_CREATED after the DATE_LAST_UPDATED. I don't know how or why, but this defaults to 0 when that happens
+        return (days >= 0) ? days : 0;
 
       case "neighborhood":
         return vis.maps.NEIGHBORHOOD[d.NEIGHBORHOOD];
@@ -307,6 +309,66 @@ class LeafletMap {
 
   }
 
+  renderLayersControl() {
+    const vis = this;
+
+    if (vis.layersControl) {
+      vis.layersControl.remove();
+    }
+
+    vis.layersControl = L.control({ position: "topright" });
+
+    vis.layersControl.onAdd = function () {
+      const div = L.DomUtil.create("div", "layers");
+
+      const button = L.DomUtil.create("button", "control-button", div);
+      button.title = "Layers"
+      button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-118 120-398l66-50 294 228 294-228 66 50-360 280Zm0-202L120-600l360-280 360 280-360 280Zm0-280Zm0 178 230-178-230-178-230 178 230 178Z"/></svg>`
+
+      const pane = L.DomUtil.create("dialog", "pane", div);
+      L.DomEvent.disableScrollPropagation(pane);
+      L.DomEvent.disableClickPropagation(pane);
+
+      const title = L.DomUtil.create("h4", "title", pane);
+      title.textContent = "LAYERS";
+
+      const filters = L.DomUtil.create("fieldset", "layers-list", pane);
+
+      vis.layers.forEach((layer, i) => {
+        const group = L.DomUtil.create("div", "layer-group", filters);
+        const input = L.DomUtil.create("input", "layer-radio", group);
+        const [value, labelValue] = Object.entries(layer)[0];
+        input.type = "radio";
+        input.name = `layer`;
+        input.id = `layer-${i}`;
+        if (vis.activeLayer === value) input.checked = true;
+
+        input.addEventListener("change", (e) => {
+          if (e.target.checked) {
+            vis.activeLayer = value;
+          }
+          vis.updateVis();
+        });
+
+        const label = L.DomUtil.create("label", "layer-label", group);
+        label.htmlFor = `layer-${i}`;
+        label.textContent = labelValue;
+      });
+
+      button.addEventListener("click", () => {
+        if (pane.open) {
+          pane.close();
+        } else {
+          pane.show();
+        }
+      });
+
+      return div;
+    }
+
+    vis.layersControl.addTo(vis.theMap);
+  }
+
   /**
    * We initialize scales/axes and append static elements, such as axis titles.
    */
@@ -338,6 +400,9 @@ class LeafletMap {
     //this is the base map layer, where we are showing the map background
     //**** TO DO - try different backgrounds 
 
+    vis.layers = [{ "light": "Light" }, { "stamen": "Regular" }, { "topo": "Topographic" }];
+    vis.activeLayer = "light";
+
     vis.base_layer = L.tileLayer(vis.stAlUrl, {
       id: 'stamen-image',
       attribution: vis.stAlAttr,
@@ -360,6 +425,7 @@ class LeafletMap {
     vis.setColorScale();
     vis.renderLegend();
     vis.renderFilter();
+    vis.renderLayersControl();
 
     //handler here for updating the map, as you zoom in and out           
     vis.theMap.on("zoomend", function () {
@@ -371,23 +437,24 @@ class LeafletMap {
 
   updateVis() {
     let vis = this;
-    let mapType = document.getElementById("map-type").value;
 
     vis.theMap.removeLayer(vis.base_layer);
 
-    if (mapType === "topo") {
+    console.log(vis.activeLayer);
+
+    if (vis.activeLayer === "topo") {
       vis.base_layer = L.tileLayer(vis.topoUrl, {
         id: 'topo-image',
         attribution: vis.esriAttr,
         ext: 'png'
       });
-    } else if (mapType === "light") {
+    } else if (vis.activeLayer === "light") {
       vis.base_layer = L.tileLayer(vis.stAlUrl, {
         id: 'alidade-image',
         attribution: vis.stAlAttr,
         ext: 'png'
       });
-    } else if (mapType === "stamen") {
+    } else if (vis.activeLayer === "stamen") {
       vis.base_layer = L.tileLayer(vis.stUrl, {
         id: 'stamen-image',
         attribution: vis.stUrl,

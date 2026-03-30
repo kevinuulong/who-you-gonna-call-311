@@ -23,10 +23,3 @@ Promise.all([
   })
   .catch(error => console.error(error));
 
-function changeMap() {
-  if (leafletMap) {
-    leafletMap.updateVis();
-  } else {
-    console.log("Map not ready yet!");
-  }
-}

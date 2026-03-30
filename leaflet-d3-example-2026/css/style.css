@@ -97,7 +97,7 @@ body {
   }
 }
 
-.filters {
+.filters, .layers {
   position: relative;
 
   &:has(:open) button {
@@ -137,7 +137,7 @@ body {
 
     }
 
-    .filter-group {
+    .filter-group, .layer-group {
       display: flex;
       gap: 0.5rem;
       padding: 0.5rem 0.5rem;
@@ -163,6 +163,10 @@ body {
     margin: 0;
     padding: 0.5rem 0.5rem;
   }
+}
+
+.layers .pane {
+  overflow-y: auto;
 }
 
 .control-button {
