@@ -398,6 +398,102 @@ class LeafletMap {
     vis.layersControl.addTo(vis.theMap);
   }
 
+  brushSelection(){
+    const vis = this;
+
+    if (vis.brushControl) {
+      vis.brushControl.remove();
+    }
+
+    vis.brushControl = L.control({ position: "topright" });
+
+    vis.brushControl.onAdd = function () {
+      const div = L.DomUtil.create("div", "brush");
+
+      const button = L.DomUtil.create("button", "control-button", div);
+      button.title = "Brush"
+      button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentcolor"><path d="m320-410 79-110h170L320-716v306ZM551-80 406-392 240-160v-720l560 440H516l144 309-109 51ZM399-520Z"/></svg>'
+
+      var brushOn = false;
+      button.addEventListener("click", () => {
+        brushOn = !brushOn;
+        if(brushOn){
+          // Indicate that its enabled
+          button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#0075cf"><path d="m320-410 79-110h170L320-716v306ZM551-80 406-392 240-160v-720l560 440H516l144 309-109 51ZM399-520Z"/></svg>'
+          // Disable Mapping to enable brushing
+          vis.theMap.dragging.disable();
+          vis.theMap.scrollWheelZoom.disable();
+          vis.theMap.doubleClickZoom.disable();
+          vis.theMap.boxZoom.disable();
+
+          vis.svg.style('pointer-events', 'all');
+          vis.initBrush();
+          
+          button.classList.add("active");
+          console.log("Brush is on");
+        }
+        else{
+          button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentcolor"><path d="m320-410 79-110h170L320-716v306ZM551-80 406-392 240-160v-720l560 440H516l144 309-109 51ZM399-520Z"/></svg>'
+
+          // Re-enable the mapping
+          vis.theMap.dragging.enable();
+          vis.theMap.scrollWheelZoom.enable();
+          vis.theMap.doubleClickZoom.enable();
+          vis.theMap.boxZoom.enable();
+
+          vis.svg.selectAll('.brush').remove();
+          vis.svg.style('pointer-events', 'none');
+          vis.Dots.attr("opacity", 1);
+          // Update FilteredData Global Variable back to default
+
+          button.classList.remove("active");
+          console.log("Brush is off");
+        }
+        //console.log(brushOn);
+      });
+
+      return div;
+
+    }
+
+    vis.brushControl.addTo(vis.theMap);
+  }
+
+  initBrush(){
+    // NOTE: Store the Value variable in the Filtered data global variable
+    const vis = this;
+    // Create the brush behavior.
+    const brush = d3.brush().on("start brush end", ({selection}) => {
+      let value = [];
+      if (selection) {
+        const [[x0, y0], [x1, y1]] = selection;
+        value = vis.Dots
+          .filter(d => {
+            const point = vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]);
+            return x0 <= point.x && point.x < x1 && y0 <= point.y && point.y < y1;
+          })
+          .data();
+          
+        // Optional: Style filtered dots (e.g., dim the unselected ones)
+        vis.Dots.attr("opacity", d => {
+          const point = vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]);
+          return (x0 <= point.x && point.x < x1 && y0 <= point.y && point.y < y1) ? 1 : 0.2;
+        });
+      } else {
+        vis.Dots.attr("opacity", 1);
+      }
+
+      
+      vis.svg.property("value", value).dispatch("input");
+    });
+
+    let brushG = vis.svg.selectAll('.brush').data([0]);
+    brushG = brushG.enter()
+      .append('g')
+      .attr('class', 'brush')
+      .merge(brushG)
+      .call(brush);
+  }
   /**
    * We initialize scales/axes and append static elements, such as axis titles.
    */
@@ -458,6 +554,7 @@ class LeafletMap {
     vis.renderLegend();
     vis.renderFilter();
     vis.renderLayersControl();
+    vis.brushSelection();
 
     //handler here for updating the map, as you zoom in and out           
     vis.theMap.on("zoomend", function () {
@@ -510,7 +607,7 @@ class LeafletMap {
       .attr("fill", (d) => vis.colorScale(vis.getColorValue(d)))  //---- TO DO- color by magnitude 
       .attr("r", 3);
 
-  }
+    }
 
 
   renderVis() {

@@ -392,6 +392,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	margin: 5px -10px 5px -6px;
 	}
 
+/* Brush Icon */
+.leaflet-control-brush-icon {
+	background-image: url(images/arrow-selector.png);
+	width: 36px;
+	height: 36px;
+	}
+.leaflet-touch .leaflet-control-brush-icon {
+	width: 44px;
+}
 /* Default icon URLs */
 .leaflet-default-icon-path {
 	background-image: url(images/marker-icon.png);
