@@ -1,16 +1,24 @@
-const colorBySelect = document.getElementById("color-by");
+let leafletMap;
 
-d3.csv('data/311Sample.csv')  //**** TO DO  switch this to loading the quakes 'data/2024-2025.csv'
-.then(data => {
+// TODO: Look into using Marker clusters for some things (especially the neighborhoods)
+// https://github.com/Leaflet/Leaflet.markercluster
+
+Promise.all([
+  d3.csv("data/311Compressed2025.csv"),
+  d3.json("data/maps.json"),
+])
+  .then(data => ({ data: data[0], maps: data[1] }))
+  .then(({ data, maps }) => {
+    const NUMBER_COLUMNS = ["LATITUDE", "LONGITUDE"];
+    
     console.log("number of items: " + data.length);
 
     data.forEach(d => {  //convert from string to number
-      d.LATITUDE = +d.LATITUDE; 
-      d.LONGITUDE = +d.LONGITUDE;  
+      NUMBER_COLUMNS.forEach((column) => d[column] = Number(d[column]));
     });
 
     // Initialize map
-    leafletMap = new LeafletMap({ parentElement: '#my-map'}, data);
+    leafletMap = new LeafletMap({ parentElement: '#my-map'}, data, maps);
 
     // Initialize timeline
     timeline = new Timeline({ 
@@ -22,6 +30,3 @@ d3.csv('data/311Sample.csv')  //**** TO DO  switch this to loading the quakes 'd
   })
   .catch(error => console.error(error));
 
-colorBySelect.addEventListener("change", (e) => {
-  console.log(e.target.value);
-});
