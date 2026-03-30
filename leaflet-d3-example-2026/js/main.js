@@ -9,9 +9,15 @@ d3.csv('data/311Sample.csv')  //**** TO DO  switch this to loading the quakes 'd
       d.LONGITUDE = +d.LONGITUDE;  
     });
 
-    // Initialize chart and then show it
+    // Initialize map
     leafletMap = new LeafletMap({ parentElement: '#my-map'}, data);
 
+    // Initialize timeline
+    timeline = new Timeline({ 
+      parentElement: '#timeline',
+      containerWidth: 800,
+      containerHeight: 300
+    }, data);
 
   })
   .catch(error => console.error(error));
