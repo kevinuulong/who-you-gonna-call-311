@@ -20,6 +20,7 @@ class LeafletMap {
     this.activeFilters = new Set(this.defaultFilters);
     this.colorBys = _colorBys;
     this.colorBy = Object.keys(this.colorBys[0])[0];
+    this.selectedNeighborhood = null;
 
     this.neighborhoods = [
       { name: "AVONDALE", location: [39.147778, -84.495] },
@@ -34,7 +35,7 @@ class LeafletMap {
       { name: "CUF", location: [39.133333, -84.525] },
       { name: "DOWNTOWN", location: [39.1, -84.516667] },
       { name: "EAST END", location: [39.1, -84.433333] },
-      { name: "EAST PRICE HILL", location: [39.1, -84.433333] },
+      { name: "EAST PRICE HILL", location: [39.1100594, -84.5757775] },
       { name: "EAST WALNUT HILLS", location: [39.125, -84.477778] },
       { name: "EAST WESTWOOD", location: [39.15, -84.566667] },
       { name: "ENGLISH WOODS", location: [39.137692, -84.552457] },
@@ -59,7 +60,7 @@ class LeafletMap {
       { name: "PADDOCK HILLS", location: [39.166667, -84.475] },
       { name: "PENDLETON", location: [39.110307, -84.508537] },
       { name: "PLEASANT RIDGE", location: [39.184302, -84.424009] },
-      { name: "QUEENSGATE", location: [39.184302, -84.424009] },
+      { name: "QUEENSGATE", location: [39.1, -84.533333] },
       { name: "RIVERSIDE", location: [39.08, -84.590278] },
       { name: "ROSELAWN", location: [39.195, -84.4625] },
       { name: "SAYLER PARK", location: [39.1125, -84.689167] },
@@ -84,7 +85,7 @@ class LeafletMap {
     switch (this.colorBy) {
       case "time-elapsed":
         this.colorScale = d3.scaleSequential()
-          .domain(d3.extent(this.data, (d) => this.getColorValue(d)))
+          .domain(d3.extent(this.filteredData, (d) => this.getColorValue(d)))
           .interpolator(d3.interpolateYlOrRd)
         break;
 
@@ -210,6 +211,7 @@ class LeafletMap {
 
       colorBySelect.addEventListener("change", (e) => {
         vis.colorBy = e.target.value;
+        vis.selectedNeighborhood = null;
         vis.setColorScale();
         vis.updateLegend();
         vis.updateFilters();
@@ -332,6 +334,15 @@ class LeafletMap {
 
   }
 
+  updateDotsVisibility() {
+    const vis = this;
+    vis.svg.selectAll("circle")
+      .attr("display", (d) => {
+        if (vis.colorBy !== "neighborhood" || !vis.isFlagsVisible) return "block";
+        return (vis.selectedNeighborhood === vis.maps.NEIGHBORHOOD[d.NEIGHBORHOOD]) ? "block" : "none";
+      })
+  }
+
   updateFilters() {
     const vis = this;
 
@@ -339,18 +350,69 @@ class LeafletMap {
     filteredData = vis.filteredData;
     updateFilteredData();
 
+    vis.neighborhoodCounts = d3.rollup(
+      vis.filteredData,
+      (v) => v.length,
+      (d) => vis.maps.NEIGHBORHOOD[d.NEIGHBORHOOD]
+    )
+
     vis.setColorScale();
 
-    if (vis.colorBy === "neighborhood") {
+    if (vis.colorBy === "neighborhood" && vis.isFlagsVisible) {
+      const zoom = vis.theMap.getZoom();
+      const size = 50 * (zoom / 11);
+
       vis.flags = vis.svg.selectAll(".flag")
         .data(vis.neighborhoods)
         .join("image")
         .classed("flag", true)
         .attr("xlink:href", (d) => `images/flags/${d.name}.svg`)
-        .attr("x", (d) => vis.theMap.latLngToLayerPoint(d.location).x - 25)
-        .attr("y", (d) => vis.theMap.latLngToLayerPoint(d.location).y - 50)
-        .attr("width", 50)
-        .attr("height", 50);
+        .attr("x", (d) => vis.theMap.latLngToLayerPoint(d.location).x - (size / 2))
+        .attr("y", (d) => vis.theMap.latLngToLayerPoint(d.location).y - size)
+        .attr("width", size)
+        .attr("height", size)
+
+        .on("mouseover", (e, d) => {
+          const count = vis.neighborhoodCounts.get(d.name) || 0;
+          d3.select("#tooltip")
+            .style("display", "block")
+            .style("z-index", 1000000)
+            .html(`
+              <div class="flag-tooltip">
+                <h4>${d.name}</h4>
+                <p>Reports: ${count.toLocaleString()}</p>
+              </div>
+              `)
+
+          d3.select(e.target)
+            .transition()
+            .duration(200)
+            .attr("transform", `rotate(-5, ${vis.theMap.latLngToLayerPoint(d.location).x + (size / 4)}, ${vis.theMap.latLngToLayerPoint(d.location).y})`)
+        })
+
+        .on("mousemove", (e) => {
+          d3.select("#tooltip")
+            .style('left', (e.pageX + 10) + 'px')
+            .style('top', (e.pageY + 10) + 'px');
+        })
+
+        .on("mouseleave", (e, d) => {
+          d3.select('#tooltip')
+            .style('display', "none");
+
+          d3.select(e.target)
+            .transition()
+            .duration(200)
+            .attr("transform", `rotate(0, ${vis.theMap.latLngToLayerPoint(d.location).x + (size / 4)}, ${vis.theMap.latLngToLayerPoint(d.location).y})`)
+        })
+
+        .on("click", (e, d) => {
+          vis.selectedNeighborhood = (vis.selectedNeighborhood === d.name) ? null : d.name;
+
+          vis.updateDotsVisibility();
+        })
+    } else {
+      vis.svg.selectAll(".flag").remove();
     }
 
     //these are the city locations, displayed as a set of dots 
@@ -358,7 +420,7 @@ class LeafletMap {
       .data(vis.filteredData)
       .join('circle')
       .attr("fill", (d) => vis.colorScale(vis.getColorValue(d)))  //---- TO DO- color by magnitude 
-      .attr("stroke", "black")
+      .attr("stroke", "#888")
       //Leaflet has to take control of projecting points. 
       //Here we are feeding the latitude and longitude coordinates to
       //leaflet so that it can project them on the coordinates of the view. 
@@ -366,7 +428,11 @@ class LeafletMap {
       //We have to select the the desired one using .x or .y
       .attr("cx", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).x)
       .attr("cy", d => vis.theMap.latLngToLayerPoint([d.LATITUDE, d.LONGITUDE]).y)
-      .attr("r", d => 3)  // --- TO DO- want to make radius proportional to earthquake size? 
+      .attr("r", d => 3)  // --- TO DO- want to make radius proportional to earthquake size?
+      .attr("display", (d) => {
+        if (vis.colorBy !== "neighborhood" || !vis.isFlagsVisible) return "block";
+        return (vis.selectedNeighborhood === vis.maps.NEIGHBORHOOD[d.NEIGHBORHOOD]) ? "block" : "none";
+      })
       .on('mouseover', function (event, d) { //function to add mouseover event
         d3.select(this).transition() //D3 selects the object we have moused over in order to perform operations on it
           .duration('150') //how long we are transitioning between the two states (works like keyframes)
@@ -406,7 +472,38 @@ class LeafletMap {
 
       })
 
-    if (vis.colorBy === "service-type") vis.renderLegend();
+    vis.renderLegend();
+    vis.renderFlagsControl();
+  }
+
+  renderFlagsControl() {
+    const vis = this;
+
+    if (vis.flagsControl) {
+      vis.flagsControl.remove();
+    }
+
+    if (vis.colorBy !== "neighborhood") return;
+
+    vis.flagsControl = L.control({ position: "topleft" });
+
+    vis.flagsControl.onAdd = function () {
+      const div = L.DomUtil.create("div", "layers");
+
+      const button = L.DomUtil.create("button", "control-button", div);
+      button.title = "Toggle flags"
+      button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M200-120v-680h360l16 80h224v400H520l-16-80H280v280h-80Zm300-440Zm86 160h134v-240H510l-16-80H280v240h290l16 80Z"/></svg>`
+
+      button.addEventListener("click", (e) => {
+        vis.isFlagsVisible = !vis.isFlagsVisible;
+        vis.updateFilters();
+      });
+
+      return div;
+    }
+
+    vis.flagsControl.addTo(vis.theMap);
+
   }
 
   renderLayersControl() {
@@ -545,10 +642,6 @@ class LeafletMap {
       ]);
     }
 
-    vis.colorScale = d3.scaleBand()
-    // .range([0, vis.theMap.getBoundingCLientRect().left])
-    // console.log(vis.theMap.getBoundingClientRect().left);
-
     //if you stopped here, you would just have a map
 
     //initialize svg for d3 to add to map
@@ -556,10 +649,14 @@ class LeafletMap {
     vis.overlay = d3.select(vis.theMap.getPanes().overlayPane)
     vis.svg = vis.overlay.select('svg').attr("pointer-events", "auto")
 
+    vis.isFlagsVisible = true;
+
+    vis.renderFilter();
+    vis.updateFilters();
     vis.setColorScale();
     vis.renderLegend();
-    vis.renderFilter();
     vis.renderLayersControl();
+    vis.renderFlagsControl();
 
     //handler here for updating the map, as you zoom in and out           
     vis.theMap.on("zoomend", function () {
@@ -567,13 +664,12 @@ class LeafletMap {
     });
 
     //prevent zooming below level 11
-    vis.theMap.on("zoom", function () {
+    vis.theMap.on("zoomstart", function () {
       if (vis.theMap.getZoom() < 11) {
         vis.theMap.setZoom(11);
       }
     });
 
-    vis.updateFilters();
   }
 
   updateVis() {
@@ -609,25 +705,19 @@ class LeafletMap {
 
     vis.base_layer.addTo(vis.theMap);
     //want to see how zoomed in you are? 
-    console.log(vis.theMap.getZoom()); //how zoomed am I?
+    // console.log(vis.theMap.getZoom()); //how zoomed am I?
 
-    vis.theMap.on("zoomstart", function () {
-      vis.updateVis();
-    });
-
-    // if (vis.theMap.getZoom() < 11) {
-    //   vis.theMap.setZoom(11);
-    // }
     //----- maybe you want to use the zoom level as a basis for changing the size of the points... ?
 
-    if (vis.colorBy === "neighborhood") {
-      console.log(vis.theMap.getZoom());
+    if (vis.colorBy === "neighborhood" && vis.isFlagsVisible) {
       const zoom = vis.theMap.getZoom();
-      const size = 50 + ((((50 / 11) * zoom)-50)*13);
-      console.log(size);
+      // NOTE: This does what I originally thought I wanted it to do, but there is either 
+      // too much overlap or they are too small to start with if they stay the same size
+      // so I don't actually think it's what we want
+      // const size = 25 * (Math.pow(2, zoom - 11));
+
+      const size = 50 * (zoom / 11);
       vis.flags
-        // .attr("transform", d3.event.transform)
-        // const zoom = vis.theMap.getZoomScale(vis.theMap.getZoom(), 11)
         .attr("x", (d) => vis.theMap.latLngToLayerPoint(d.location).x - (size / 2))
         .attr("y", (d) => vis.theMap.latLngToLayerPoint(d.location).y - size)
         .attr("width", size)
