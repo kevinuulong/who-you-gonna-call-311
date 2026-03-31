@@ -11,6 +11,13 @@
     <div id="my-map"></div>
 
     <div id="sidebar">
+        <div id="vis-buttons">
+            <button onclick="showVis('vis1-most-requests')">Requests by Neighborhoods</button>
+            <button onclick="showVis('vis2-common-methods')">Common Request Methods</button>
+            <button onclick="showVis('vis3-department-requests')">Requests by Departments</button>
+            <button onclick="showVis('vis4-priority')">Priority Distribution</button>
+        </div>
+
         <div id="vis1-most-requests"></div>
         <script src="js/Visualizations/vis1-most-requests.js"></script>
 

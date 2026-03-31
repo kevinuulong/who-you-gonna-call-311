@@ -1,122 +1,157 @@
 Promise.all([
-  d3.csv("data/311Compressed2025.csv"),
-  d3.json("data/maps.json"),
+    d3.csv("data/311Compressed2025.csv"),
+    d3.json("data/maps.json"),
 ])
-  .then(data => ({ data: data[0], maps: data[1] }))
-  .then(({ data, maps }) => {
+    .then(data => ({ data: data[0], maps: data[1] }))
+    .then(({ data, maps }) => {
 
-    data.forEach(d => {
-        d.type = maps.SR_TYPE_DESC[d.SR_TYPE_DESC] ? maps.SR_TYPE_DESC[d.SR_TYPE_DESC].trim() : "Unknown";
-        d.priority = maps.PRIORITY[d.PRIORITY] ? maps.PRIORITY[d.PRIORITY].trim() : "Unknown";
-    });
-
-    const priorities = Array.from(new Set(data.map(d => d.priority)));
-
-    const nested = d3.rollups(
-        data,
-        v => {
-            const counts = {};
-            priorities.forEach(p => counts[p] = 0);
-            v.forEach(d => counts[d.priority]++);
-            return counts;
-        },
-        d => d.type
-    );
-
-    let stackedData = nested.map(d => {
-        return { type: d[0], ...d[1] };
-    });
-
-    stackedData.sort((a, b) => {
-        const sumA = priorities.reduce((s, p) => s + a[p], 0);
-        const sumB = priorities.reduce((s, p) => s + b[p], 0);
-        return sumB - sumA;
-    });
-
-    stackedData = stackedData.slice(0, 8);
-
-    const margin = { top: 20, right: 20, bottom: 100, left: 50 };
-    const width = 300 - margin.left - margin.right;
-    const height = 300 - margin.top - margin.bottom;
-
-    const svg = d3.select("#vis4-priority")
-        .append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
-
-    const x = d3.scaleBand()
-        .domain(stackedData.map(d => d.type))
-        .range([0, width])
-        .padding(0.2);
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(stackedData, d =>
-            priorities.reduce((sum, p) => sum + d[p], 0)
-        )])
-        .nice()
-        .range([height, 0]);
-
-    const color = d3.scaleOrdinal()
-        .domain(priorities)
-        .range(d3.schemeSet2);
-
-    const stack = d3.stack()
-        .keys(priorities);
-
-    const series = stack(stackedData);
-
-    svg.selectAll("g.layer")
-        .data(series)
-        .enter()
-        .append("g")
-        .attr("fill", d => color(d.key))
-        .selectAll("rect")
-        .data(d => d)
-        .enter()
-        .append("rect")
-        .attr("x", d => x(d.data.type))
-        .attr("y", d => y(d[1]))
-        .attr("height", d => y(d[0]) - y(d[1]))
-        .attr("width", x.bandwidth());
-
-    svg.append("g")
-        .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(x))
-        .selectAll("text")
-        .attr("transform", "rotate(-40)")
-        .style("text-anchor", "end");
-        svg.append("g")
-        .call(d3.axisLeft(y));
-
-    svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", height + 80)
-        .attr("text-anchor", "middle")
-        .text("Service Request Type");
-
-    svg.append("text")
-        .attr("transform", "rotate(-90)")
-        .attr("x", -height / 2)
-        .attr("y", -40)
-        .attr("text-anchor", "middle")
-        .text("Number of Requests");
-
-    console.log("Stacked data:", stackedData);
-
-    const legend = svg.append("g")
-        .attr("transform", `translate(${width - 100}, 0)`);
-        priorities.forEach((p, i) => {
-            const row = legend.append("g")
-                .attr("transform", `translate(0, ${i * 15})`);
-            row.append("rect")
-                .attr("width", 10)
-                .attr("height", 10)
-                .attr("fill", color(p));
-            row.append("text")
-                .attr("x", 15)
-                .attr("y", 9)
-                .text(p)
-                .style("font-size", "10px");
+        data.forEach(d => {
+            d.priority = maps.PRIORITY[d.PRIORITY]
+                ? maps.PRIORITY[d.PRIORITY].trim()
+                : "Unknown";
         });
-});
+
+        let counts = d3.rollups(
+            data,
+            v => v.length,
+            d => d.priority
+        ).map(d => ({
+            priority: d[0],
+            count: d[1]
+        }));
+
+        counts = counts.filter(d => d.priority !== "Unknown");
+
+        const total = d3.sum(counts, d => d.count);
+        const width = 400;
+        const height = 700;
+        const radius = Math.min(width, height) / 2;
+
+        const svgContainer = d3.select("#vis4-priority")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", height)
+            .style("font-family", "Arial, sans-serif");
+
+        svgContainer.append("text")
+            .attr("x", width / 2)
+            .attr("y", 30)
+            .text("Request Priority Distribution")
+            .attr("text-anchor", "middle")
+            .style("font-size", "18px")
+            .style("font-weight", "bold");
+
+        const svg = svgContainer.append("g")
+            .attr("transform", `translate(${width / 2}, 275)`);
+
+        const priorityColors = {
+            "STANDARD": "#888593",
+            "PRIORITY": "#10b0ff",
+            "HAZARDOUS": "#ac7bff",
+            "EMERGENCY": "#c9080a"
+        };
+
+        const color = d3.scaleOrdinal()
+            .domain(counts.map(d => d.priority))
+            .range(counts.map(d => priorityColors[d.priority]));
+
+        const pie = d3.pie()
+            .value(d => d.count)
+            .sort(null);
+
+        const arc = d3.arc()
+            .innerRadius(radius * 0.5)
+            .outerRadius(radius);
+
+        const arcs = svg.selectAll("path")
+            .data(pie(counts))
+            .enter()
+            .append("path")
+            .attr("d", arc)
+            .attr("fill", d => color(d.data.priority))
+            .attr("stroke", "white")
+            .style("stroke-width", "1px");
+
+        const labelArc = d3.arc()
+            .innerRadius(radius * 0.7)
+            .outerRadius(radius * 0.9);
+
+        svg.selectAll("text.slice-label")
+            .data(pie(counts))
+            .enter()
+            .append("text")
+            .attr("class", "slice-label")
+            .attr("transform", d => `translate(${labelArc.centroid(d)})`)
+            .attr("text-anchor", "middle")
+            .attr("dy", "0.35em")
+            .style("font-size", "10px")
+            .text(d => (d.data.count / total >= 0.05 ? d.data.priority : ""));
+
+        const legend = svgContainer.append("g")
+            .attr("transform", `translate(150, ${radius * 2 + 125})`);
+
+        const legendItems = legend.selectAll("g")
+            .data(counts)
+            .enter()
+            .append("g")
+            .attr("transform", (d, i) => `translate(0, ${i * 30})`);
+
+        legendItems.append("rect")
+            .attr("width", 12)
+            .attr("height", 12)
+            .attr("fill", d => color(d.priority));
+
+        legendItems.append("text")
+            .attr("x", 18)
+            .attr("y", 10)
+            .style("font-size", "12px")
+            .text(d => d.priority);
+
+        const tooltip = d3.select("#tooltip");
+
+        function highlight(priority) {
+            arcs.style("opacity", d => d.data.priority === priority ? 1 : 0.3)
+                .attr("stroke-width", d => d.data.priority === priority ? 3 : 1);
+            legendItems.selectAll("rect")
+                .style("opacity", d => d.priority === priority ? 1 : 0.3)
+                .attr("stroke", d => d.priority === priority ? "#000" : "none")
+                .attr("stroke-width", d => d.priority === priority ? 2 : 0);
+            legendItems.selectAll("text")
+                .style("opacity", d => d.priority === priority ? 1 : 0.3);
+        }
+
+        function resetHighlight() {
+            arcs.style("opacity", 1).attr("stroke-width", 1);
+            legendItems.selectAll("rect").style("opacity", 1).attr("stroke", "none").attr("stroke-width", 0);
+            legendItems.selectAll("text").style("opacity", 1);
+            tooltip.style("display", "none");
+        }
+
+        arcs.on("mouseover", (event, d) => {
+            highlight(d.data.priority);
+            tooltip.style("display", "block")
+                .html(`<div><strong>${d.data.priority}</strong><br>
+             Count: ${d.data.count.toLocaleString()}<br>
+             Percentage: ${(d.data.count / total * 100).toFixed(2)}%</div>`)
+                .style("left", `${event.pageX + 10}px`)
+                .style("top", `${event.pageY + 10}px`);
+        }).on("mousemove", (event) => {
+            tooltip.style("left", `${event.pageX + 10}px`)
+                .style("top", `${event.pageY + 10}px`);
+        }).on("mouseout", () => resetHighlight());
+
+        legendItems.on("mouseover", (event, d) => {
+            highlight(d.priority);
+            tooltip.style("display", "block")
+                .html(`<div><strong>${d.priority}</strong><br>
+             Count: ${d.count.toLocaleString()}<br>
+             Percentage: ${(d.count / total * 100).toFixed(2)}%</div>`)
+                .style("left", `${event.pageX + 10}px`)
+                .style("top", `${event.pageY + 10}px`);
+        }).on("mousemove", (event) => {
+            tooltip.style("left", `${event.pageX + 10}px`)
+                .style("top", `${event.pageY + 10}px`);
+        }).on("mouseout", () => resetHighlight());
+
+        console.log("Priority counts (grouped):", counts);
+    });

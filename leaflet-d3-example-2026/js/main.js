@@ -35,3 +35,19 @@ Promise.all([
     timeline.updateVis();
   }
 
+function showVis(id) {
+    const visIds = [
+        "vis1-most-requests",
+        "vis2-common-methods",
+        "vis3-department-requests",
+        "vis4-priority"
+    ];
+
+    visIds.forEach(v => {
+        d3.select("#" + v).style("display", v === id ? "block" : "none");
+    });
+}
+
+window.onload = function () {
+    showVis("vis1-most-requests");
+};
