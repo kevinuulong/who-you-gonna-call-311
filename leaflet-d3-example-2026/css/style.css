@@ -19,8 +19,50 @@ body {
 }
 
 #sidebar {
-  background-color: red;
+  /* background-color: red; */
   grid-row: span 5;
+  gap: 20px;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: 20px;
+}
+
+#sidebar * {
+    font-family: Arial, sans-serif;
+} 
+
+#sidebar > div {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+#sidebar svg {
+    width: 100%;
+}
+
+#vis-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+#vis-buttons button {
+    width: 100%;
+    height: 65px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 15px;
+    border: 2px solid #0077cc;
+    background: #71d0ff;
+    color: rgb(0, 0, 0);
+    padding: 6px;
+}
+
+#vis-buttons button:active {
+    background: rgb(145, 218, 255);
 }
 
 #timeline {
